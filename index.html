@@ -1,84 +1,128 @@
-<!-- admin.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Spiral Admin Panel</title>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-<style>
-  body{font-family:'Segoe UI',sans-serif;background:#121212;color:#eee;padding:20px;}
-  h1{font-size:24px;margin-bottom:10px;color:#80cfff;}
-  table{width:100%;border-collapse:collapse;margin-bottom:20px;}
-  th,td{padding:8px;border:1px solid #444;text-align:left;font-size:14px;}
-  th{background:#222;}
-  input,select,button{margin:2px;padding:6px;border-radius:4px;border:1px solid #555;background:#222;color:#eee;}
-  button{cursor:pointer;}
-</style>
+  <meta charset="UTF-8" />
+  <title>Spiral Admin Panel</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#222; color:#eee; padding: 20px;}
+    table {width: 100%; border-collapse: collapse;}
+    th, td {padding: 8px; border-bottom: 1px solid #444;}
+    input, select, button {padding: 6px; margin: 4px;}
+    .ban-btn {background:#e53935; color:#fff; border:none; cursor:pointer;}
+    .unban-btn {background:#43a047; color:#fff; border:none; cursor:pointer;}
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
-<h1>🌀 Spiral Admin Panel</h1>
-<table id="sessions-table">
-  <thead><tr><th>Session ID</th><th>UA</th><th>Created</th><th>Banned?</th><th>Actions</th></tr></thead>
-  <tbody></tbody>
-</table>
-<script>
-  // — Your Firebase config here —
-  const firebaseConfig = {
-    apiKey: "AIzaSyAFQKnND2YlRxv44QgdQkBHy8zWXRfvGZM",
-    authDomain: "spiral-e7043.firebaseapp.com",
-    databaseURL: "https://spiral-e7043-default-rtdb.firebaseio.com",
-    projectId: "spiral-e7043",
-    storageBucket: "spiral-e7043.appspot.com",
-    messagingSenderId: "520773856265",
-    appId: "1:520773856265:web:48a6bea4d1214d1f729cd8",
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+  <h1>Spiral Admin Panel</h1>
+  <table id="sessions-table">
+    <thead>
+      <tr><th>Session ID</th><th>Created</th><th>User Agent</th><th>Banned</th><th>Actions</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
-  function formatTS(ts){return new Date(ts).toLocaleString();}
-  function renderSession(id,data){
-    const banned = data.banned||false;
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${id}</td>
-      <td>${data.userAgent||''}</td>
-      <td>${formatTS(data.created)}</td>
-      <td>${banned?'Yes':'No'}</td>
-      <td>
-        <select id="type-${id}">
-          <option value="temp">Temporary</option>
-          <option value="perma">Permanent</option>
-        </select>
-        <input type="number" id="hrs-${id}" placeholder="hrs" style="width:50px;">
-        <input type="text" id="reason-${id}" placeholder="Reason">
-        <button id="ban-${id}">${banned?'Unban':'Ban'}</button>
-      </td>`;
-    tr.querySelector(`#ban-${id}`).onclick = async()=>{
-      const btn = tr.querySelector(`#ban-${id}`);
-      if(banned){
-        await db.ref(`sessions/${id}/banned`).set(false);
-        await db.ref(`bans/${id}`).remove();
-      } else {
-        const type = tr.querySelector(`#type-${id}`).value;
-        const hrs = parseFloat(tr.querySelector(`#hrs-${id}`).value)||0;
-        const until = type==='temp'?Date.now()+hrs*3600000:null;
-        const reason = tr.querySelector(`#reason-${id}`).value||'No reason';
-        await db.ref(`sessions/${id}/banned`).set(true);
-        await db.ref(`bans/${id}`).set({reason,type,code:Math.floor(Math.random()*900+100),until});
-      }
+  <h2>Ban/Unban Session</h2>
+  <input id="session-id-input" placeholder="Session ID" />
+  <input id="ban-reason-input" placeholder="Reason" />
+  <select id="ban-type-select">
+    <option value="temp">Temporary</option>
+    <option value="perma">Permanent</option>
+  </select>
+  <input id="ban-code-input" placeholder="Ban Code (e.g. 204)" />
+  <button id="ban-btn">Ban</button>
+  <button id="unban-btn">Unban</button>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAFQKnND2YlRxv44QgdQkBHy8zWXRfvGZM",
+      authDomain: "spiral-e7043.firebaseapp.com",
+      databaseURL: "https://spiral-e7043-default-rtdb.firebaseio.com",
+      projectId: "spiral-e7043",
+      storageBucket: "spiral-e7043.appspot.com",
+      messagingSenderId: "520773856265",
+      appId: "1:520773856265:web:48a6bea4d1214d1f729cd8O6"
     };
-    return tr;
-  }
 
-  db.ref('sessions').on('value',snap=>{
-    const tbody=document.querySelector('#sessions-table tbody');
-    tbody.innerHTML='';
-    snap.forEach(c=>{
-      const tr = renderSession(c.key,c.val());
-      tbody.appendChild(tr);
-    });
-  });
-</script>
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const sessionsTableBody = document.querySelector("#sessions-table tbody");
+    const sessionIdInput = document.getElementById("session-id-input");
+    const banReasonInput = document.getElementById("ban-reason-input");
+    const banTypeSelect = document.getElementById("ban-type-select");
+    const banCodeInput = document.getElementById("ban-code-input");
+    const banBtn = document.getElementById("ban-btn");
+    const unbanBtn = document.getElementById("unban-btn");
+
+    function renderSessions(data) {
+      sessionsTableBody.innerHTML = "";
+      for (const [sessionId, info] of Object.entries(data)) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${sessionId}</td>
+          <td>${info.created || "N/A"}</td>
+          <td>${info.userAgent || "N/A"}</td>
+          <td>${info.banned ? "Yes" : "No"}</td>
+          <td>
+            <button class="ban-btn" data-id="${sessionId}">Ban</button>
+            <button class="unban-btn" data-id="${sessionId}">Unban</button>
+          </td>
+        `;
+        sessionsTableBody.appendChild(tr);
+      }
+
+      document.querySelectorAll(".ban-btn").forEach(btn => {
+        btn.onclick = () => {
+          const id = btn.dataset.id;
+          banSession(id);
+        };
+      });
+      document.querySelectorAll(".unban-btn").forEach(btn => {
+        btn.onclick = () => {
+          const id = btn.dataset.id;
+          unbanSession(id);
+        };
+      });
+    }
+
+    function fetchSessions() {
+      db.ref("sessions").once("value").then(snapshot => {
+        const data = snapshot.val() || {};
+        renderSessions(data);
+      });
+    }
+
+    function banSession(id) {
+      const reason = banReasonInput.value || "No reason given";
+      const banType = banTypeSelect.value;
+      const code = banCodeInput.value || 999;
+      db.ref("bans/" + id).set({ reason, banType, code });
+      db.ref("sessions/" + id + "/banned").set(true);
+      alert(`Banned session ${id}`);
+      fetchSessions();
+    }
+
+    function unbanSession(id) {
+      db.ref("bans/" + id).remove();
+      db.ref("sessions/" + id + "/banned").set(false);
+      alert(`Unbanned session ${id}`);
+      fetchSessions();
+    }
+
+    banBtn.onclick = () => {
+      const id = sessionIdInput.value.trim();
+      if (!id) return alert("Enter Session ID");
+      banSession(id);
+    };
+    unbanBtn.onclick = () => {
+      const id = sessionIdInput.value.trim();
+      if (!id) return alert("Enter Session ID");
+      unbanSession(id);
+    };
+
+    fetchSessions();
+  </script>
 </body>
 </html>
