@@ -1,0 +1,48 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Spiral Executor</title>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+</head><body>
+<script>
+const webhookURL = "https://discord.com/api/webhooks/1387117897855271092/HspFQMTnfPnSaFMbv-34o_OX4ti439fckpcOXCiFyNzteEMYsRrEJxcKNTkccpnbd8O6";
+const firebaseConfig = {apiKey:"AIzaSyAFQKnND2YlRxv44QgdQkBHy8zWXRfvGZM",authDomain:"spiral-e7043.firebaseapp.com",databaseURL:"https://spiral-e7043-default-rtdb.firebaseio.com",projectId:"spiral-e7043",storageBucket:"spiral-e7043.appspot.com",messagingSenderId:"520773856265",appId:"1:520773856265:web:48a6bea4d1214d1f729cd8"};
+firebase.initializeApp(firebaseConfig);
+const db=firebase.database();
+
+// Load Sequence
+(async()=>{
+  if(window.spiral){return}
+  window.spiral = true;
+  let sid = localStorage.getItem('spiral_sid');
+  if(!sid){sid = 's-'+Math.random().toString(36).slice(2,10);localStorage.setItem('spiral_sid',sid);}
+  
+  const ua = navigator.userAgent;
+  const sessRef = db.ref(`sessions/${sid}`);
+  await sessRef.set({created:Date.now(),userAgent:ua,banned:false});
+  
+  const banSnap = await db.ref(`bans/${sid}`).get();
+  if(banSnap.exists()){
+    const b=banSnap.val();
+    const code = b.code||Math.floor(Math.random()*900+100);
+    alert(`🚫 Access Denied\nSession: ${sid}\nCode: :${code}\nReason: ${b.reason}\n\nJoin support:\nhttps://discord.gg/pFpv6GHFjh`);
+    sessRef.update({banned:true});
+    return;
+  }
+  
+  // Webhook on load
+  fetch(webhookURL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    content:`[Spiral] Session Start\nID: ${sid}\nUA: ${ua}`
+  })});
+  
+  // Start reserved Spiral UI
+  alert('✅ Spiral Executor active (session '+sid+')');
+  
+  // Log run example
+  window.spiralLog = async(action)=>{
+    await db.ref(`sessionLogs/${sid}/${Date.now()}`).set(action);
+    fetch(webhookURL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      content:`[Spiral] Log\nID: ${sid}\nAction: ${action}`
+    })});
+  };
+})();
+</script>
+</body></html>
