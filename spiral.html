@@ -1,128 +1,231 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Spiral Admin Panel</title>
-  <style>
-    body { font-family: Arial, sans-serif; background:#222; color:#eee; padding: 20px;}
-    table {width: 100%; border-collapse: collapse;}
-    th, td {padding: 8px; border-bottom: 1px solid #444;}
-    input, select, button {padding: 6px; margin: 4px;}
-    .ban-btn {background:#e53935; color:#fff; border:none; cursor:pointer;}
-    .unban-btn {background:#43a047; color:#fff; border:none; cursor:pointer;}
-  </style>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-</head>
-<body>
-  <h1>Spiral Admin Panel</h1>
-  <table id="sessions-table">
-    <thead>
-      <tr><th>Session ID</th><th>Created</th><th>User Agent</th><th>Banned</th><th>Actions</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+(() => {
+  if (window.spiralLoaded) return;
+  window.spiralLoaded = true;
 
-  <h2>Ban/Unban Session</h2>
-  <input id="session-id-input" placeholder="Session ID" />
-  <input id="ban-reason-input" placeholder="Reason" />
-  <select id="ban-type-select">
-    <option value="temp">Temporary</option>
-    <option value="perma">Permanent</option>
-  </select>
-  <input id="ban-code-input" placeholder="Ban Code (e.g. 204)" />
-  <button id="ban-btn">Ban</button>
-  <button id="unban-btn">Unban</button>
+  // Your UI + logic here (same as before, renamed to Spiral etc.)
+  const themes = {
+    Default: { bg: "rgba(30,30,30,0.92)", border: "#444", text: "#fff", highlight: "#90caf9", btnBg: "#222", btnHover: "#333", logBg: "#111", codeBg: "#111", codeText: "#0f0" },
+    Space: { bg: "rgba(18,10,36,0.95)", border: "#5a2e8a", text: "#ddd", highlight: "#b39ddb", btnBg: "#3a2673", btnHover: "#5a2e8a", logBg: "#2a1a5c", codeBg: "#2a1a5c", codeText: "#cfc" },
+    Earth: { bg: "rgba(28,40,20,0.95)", border: "#556b2f", text: "#dfdecf", highlight: "#a4c639", btnBg: "#556b2f", btnHover: "#6b8e23", logBg: "#364b16", codeBg: "#364b16", codeText: "#cfc" },
+    Ocean: { bg: "rgba(5,50,70,0.95)", border: "#1c658c", text: "#cde7ff", highlight: "#5bc0de", btnBg: "#1c658c", btnHover: "#37a0dc", logBg: "#164455", codeBg: "#164455", codeText: "#cce" },
+    Light: { bg: "#f9f9f9", border: "#bbb", text: "#111", highlight: "#1976d2", btnBg: "#ddd", btnHover: "#bbb", logBg: "#eee", codeBg: "#eee", codeText: "#111" }
+  };
+  let currentTheme = "Default";
 
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyAFQKnND2YlRxv44QgdQkBHy8zWXRfvGZM",
-      authDomain: "spiral-e7043.firebaseapp.com",
-      databaseURL: "https://spiral-e7043-default-rtdb.firebaseio.com",
-      projectId: "spiral-e7043",
-      storageBucket: "spiral-e7043.appspot.com",
-      messagingSenderId: "520773856265",
-      appId: "1:520773856265:web:48a6bea4d1214d1f729cd8O6"
-    };
-
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    const sessionsTableBody = document.querySelector("#sessions-table tbody");
-    const sessionIdInput = document.getElementById("session-id-input");
-    const banReasonInput = document.getElementById("ban-reason-input");
-    const banTypeSelect = document.getElementById("ban-type-select");
-    const banCodeInput = document.getElementById("ban-code-input");
-    const banBtn = document.getElementById("ban-btn");
-    const unbanBtn = document.getElementById("unban-btn");
-
-    function renderSessions(data) {
-      sessionsTableBody.innerHTML = "";
-      for (const [sessionId, info] of Object.entries(data)) {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${sessionId}</td>
-          <td>${info.created || "N/A"}</td>
-          <td>${info.userAgent || "N/A"}</td>
-          <td>${info.banned ? "Yes" : "No"}</td>
-          <td>
-            <button class="ban-btn" data-id="${sessionId}">Ban</button>
-            <button class="unban-btn" data-id="${sessionId}">Unban</button>
-          </td>
-        `;
-        sessionsTableBody.appendChild(tr);
+  function applyTheme(t) {
+    let s = document.getElementById("spiral-style");
+    if (!s) {
+      s = document.createElement("style");
+      s.id = "spiral-style";
+      document.head.appendChild(s);
+    }
+    const c = themes[t];
+    s.innerHTML = `
+      #spiral-ui {
+        position: fixed;
+        top: 100px;
+        right: 100px;
+        z-index: 999999;
+        background: ${c.bg};
+        backdrop-filter: blur(20px);
+        border: 1px solid ${c.border};
+        color: ${c.text};
+        padding: 16px;
+        border-radius: 12px;
+        font-family: 'Segoe UI', sans-serif;
+        box-shadow: 0 8px 28px rgba(0,0,0,0.6);
+        width: 420px;
+        user-select: none;
+        transition: all 0.3s ease;
       }
+      #spiral-ui h1 {
+        font-size: 18px;
+        margin-bottom: 10px;
+        text-align: center;
+        color: ${c.highlight};
+        transition: color 0.3s ease;
+      }
+      #spiral-tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 10px;
+      }
+      #spiral-tabs button {
+        flex: 1;
+        background: ${c.btnBg};
+        border: none;
+        color: ${c.text};
+        padding: 8px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: background 0.3s ease;
+      }
+      #spiral-tabs button.active {
+        background: ${c.highlight};
+        color: #000;
+      }
+      #spiral-content > div {
+        display: none;
+      }
+      #spiral-content > div.active {
+        display: block;
+      }
+      #spiral-code-area {
+        width: 100%;
+        height: 120px;
+        border-radius: 8px;
+        background: ${c.codeBg};
+        border: none;
+        color: ${c.codeText};
+        font-family: monospace;
+        font-size: 13px;
+        padding: 8px;
+        resize: vertical;
+      }
+      #spiral-run-btn {
+        margin-top: 8px;
+        width: 100%;
+        background: ${c.highlight};
+        border: none;
+        padding: 10px;
+        font-size: 14px;
+        color: #000;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      #spiral-run-btn:hover {
+        background: #1565c0;
+      }
+      #spiral-log {
+        height: 120px;
+        overflow: auto;
+        background: ${c.logBg};
+        padding: 8px;
+        border-radius: 8px;
+        font-family: monospace;
+        font-size: 12px;
+        color: ${c.codeText};
+      }
+      #spiral-credits {
+        max-height: 180px;
+        overflow: auto;
+        line-height: 1.6;
+        font-size: 13px;
+        color: ${c.highlight};
+      }
+    `;
+  }
 
-      document.querySelectorAll(".ban-btn").forEach(btn => {
-        btn.onclick = () => {
-          const id = btn.dataset.id;
-          banSession(id);
-        };
-      });
-      document.querySelectorAll(".unban-btn").forEach(btn => {
-        btn.onclick = () => {
-          const id = btn.dataset.id;
-          unbanSession(id);
-        };
-      });
-    }
+  function showLog(text) {
+    const log = document.getElementById("spiral-log");
+    if (!log) return;
+    let d = document.createElement("div");
+    d.textContent = text;
+    d.style.marginBottom = "3px";
+    log.appendChild(d);
+    log.scrollTop = log.scrollHeight;
+  }
 
-    function fetchSessions() {
-      db.ref("sessions").once("value").then(snapshot => {
-        const data = snapshot.val() || {};
-        renderSessions(data);
-      });
-    }
+  const ui = document.createElement("div");
+  ui.id = "spiral-ui";
+  ui.style.left = "100px";
+  ui.style.top = "100px";
 
-    function banSession(id) {
-      const reason = banReasonInput.value || "No reason given";
-      const banType = banTypeSelect.value;
-      const code = banCodeInput.value || 999;
-      db.ref("bans/" + id).set({ reason, banType, code });
-      db.ref("sessions/" + id + "/banned").set(true);
-      alert(`Banned session ${id}`);
-      fetchSessions();
-    }
+  ui.innerHTML = `
+    <h1>🌀 Spiral Executor</h1>
+    <div id="spiral-tabs">
+      <button class="active">Log</button>
+      <button>Run</button>
+      <button>Themes</button>
+      <button>Credits</button>
+    </div>
+    <div id="spiral-content">
+      <div id="spiral-log" class="active"></div>
+      <div id="spiral-run">
+        <textarea id="spiral-code-area" placeholder="Type JavaScript here..."></textarea>
+        <button id="spiral-run-btn">▶️ Run</button>
+      </div>
+      <div id="spiral-themes">
+        <select id="spiral-theme-select" style="width:100%;padding:10px;border-radius:8px;border:none;background:#222;color:#eee;font-size:14px;cursor:pointer;margin-top:10px;">
+          <option value="Default">Default</option>
+          <option value="Space">Space</option>
+          <option value="Earth">Earth</option>
+          <option value="Ocean">Ocean</option>
+          <option value="Light">Light</option>
+        </select>
+      </div>
+      <div id="spiral-credits" style="display:none;">
+        ${Array.from({ length: 50 }, (_, i) => `<div>• Credit ${i + 1} — 🧠 Created by <b>kvn</b></div>`).join("")}
+      </div>
+    </div>
+  `;
 
-    function unbanSession(id) {
-      db.ref("bans/" + id).remove();
-      db.ref("sessions/" + id + "/banned").set(false);
-      alert(`Unbanned session ${id}`);
-      fetchSessions();
-    }
+  document.body.appendChild(ui);
 
-    banBtn.onclick = () => {
-      const id = sessionIdInput.value.trim();
-      if (!id) return alert("Enter Session ID");
-      banSession(id);
+  // Tabs logic
+  const tabs = ui.querySelectorAll("#spiral-tabs button");
+  const contents = ui.querySelectorAll("#spiral-content > div");
+  tabs.forEach((tab, i) => {
+    tab.onclick = () => {
+      tabs.forEach(t => t.classList.remove("active"));
+      contents.forEach(c => c.classList.remove("active"));
+      tab.classList.add("active");
+      contents[i].classList.add("active");
     };
-    unbanBtn.onclick = () => {
-      const id = sessionIdInput.value.trim();
-      if (!id) return alert("Enter Session ID");
-      unbanSession(id);
-    };
+  });
 
-    fetchSessions();
-  </script>
-</body>
-</html>
+  // Run button
+  document.getElementById("spiral-run-btn").onclick = () => {
+    const code = document.getElementById("spiral-code-area").value;
+    try {
+      const result = eval(code);
+      showLog("Script executed");
+      if (result !== undefined) showLog("Result: " + result);
+    } catch (e) {
+      alert("Error: " + e);
+      showLog("Error: " + e);
+    }
+  };
+
+  // Theme selector
+  document.getElementById("spiral-theme-select").onchange = e => {
+    currentTheme = e.target.value;
+    applyTheme(currentTheme);
+    showLog("Theme changed to " + currentTheme);
+  };
+
+  // Initial theme apply
+  applyTheme(currentTheme);
+
+  // Make UI draggable
+  let dragging = false, dx = 0, dy = 0;
+  ui.onmousedown = e => {
+    dragging = true;
+    dx = e.clientX - ui.offsetLeft;
+    dy = e.clientY - ui.offsetTop;
+  };
+  document.onmouseup = () => { dragging = false; };
+  document.onmousemove = e => {
+    if (dragging) {
+      ui.style.left = (e.clientX - dx) + "px";
+      ui.style.top = (e.clientY - dy) + "px";
+    }
+  };
+
+  // Save/load script support (localStorage)
+  const codeArea = document.getElementById("spiral-code-area");
+  const SCRIPT_KEY = "spiral_saved_script";
+
+  // Load saved script
+  const savedScript = localStorage.getItem(SCRIPT_KEY);
+  if (savedScript) codeArea.value = savedScript;
+
+  // Auto-save on input
+  codeArea.addEventListener("input", () => {
+    localStorage.setItem(SCRIPT_KEY, codeArea.value);
+  });
+
+  // Plugin loader tab (basic example)
+  // You can extend this by adding a new tab for plugins and load scripts dynamically
+})();
